@@ -1,32 +1,29 @@
 <!DOCTYPE html>
 <html>
-
-<head>
-    <title>OpenLayers Deneme</title>
-    <script src="https://cdn.jsdelivr.net/gh/openlayers/openlayers.github.io@master/en/v6.15.1/build/ol.js"></script>
-    <link rel="stylesheet"
-        href="https://cdn.jsdelivr.net/gh/openlayers/openlayers.github.io@master/en/v6.15.1/css/ol.css">
-    <style>
-        .map {
-            height: 400px;
-            width: 50%;
-            margin: auto;
-        }
-
-        body {
-            background-color: brown;
-        }
-    </style>
-</head>
-
-<body>
-    <div id="map" class="map" tabindex="0"></div>
-    <script>
-        //Samil'den contribute denemesi
-        const map = new ol.Map({
+    <head>
+        <title>OpenLayers Deneme</title>
+        <script src="https://cdn.jsdelivr.net/gh/openlayers/openlayers.github.io@master/en/v6.15.1/build/ol.js"></script>
+        <link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/openlayers/openlayers.github.io@master/en/v6.15.1/css/ol.css">
+        <style>
+            .map {
+              height: 400px;
+              width: 50%;
+              margin: auto;
+            }
+            body{
+                background-color: brown;
+            }
+        </style>   
+    </head>
+    
+    <body>
+        <div id="map" class="map" tabindex="0"></div>
+        <script>
+            //Selam, bu bir contribute denemesidir.
+            const map = new ol.Map({
             layers: [
                 new ol.layer.Tile({
-                    source: new ol.source.OSM(),
+                source: new ol.source.OSM(),
                 }),
             ],
             target: 'map',
@@ -34,8 +31,7 @@
                 center: [0, 0],
                 zoom: 2,
             }),
-        });
-    </script>
-</body>
-
+            });
+        </script>
+    </body>
 </html>
