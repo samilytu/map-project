@@ -1,0 +1,293 @@
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+	<meta charset="utf-8">
+	<meta name="viewport" content="width=device-width, initial-scale=1">
+	
+	<title>Leaflet Demo</title>
+	
+	<!-- <link rel="shortcut icon" type="image/x-icon" href="docs/images/favicon.ico" /> -->
+
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.8.0/dist/leaflet.css" integrity="sha512-hoalWLoI8r4UszCkZ5kL8vayOGVae1oxXe/2A4AO6J9+580uKHDO3JdHb7NzwwzK5xr/Fs0W40kiNHxM9vyTtQ==" crossorigin=""/>
+    <script src="https://unpkg.com/leaflet@1.8.0/dist/leaflet.js" integrity="sha512-BB3hKbKWOc9Ez/TAwyWxNXeoV9c1v6FIeYiBieIWkpLjauysF18NzgR1MBNBXf8/KABdlkX68nAhlwcDFLGPCQ==" crossorigin=""></script>
+
+	<style>
+		html, body {
+			height: 100%;
+			margin: 0;
+			background: linear-gradient(30deg, rgba(191,8,8,1) 15%, rgba(113,5,113,1) 85%);
+		}
+		.leaflet-container {
+			height: 70%;
+			width: 50%;
+			max-width: 100%;
+			max-height: 100%;
+			margin-left: 15%;
+		}
+
+		button{
+			width: 150px;
+			margin-left: 20px;
+		}
+		#opt{
+			float: right;
+			width: 100px;
+			margin-right: 5%;
+			margin-top: 5%;
+		}
+		form{
+			float: right;
+			margin-top: 10%;
+			background: linear-gradient(150deg, rgb(41, 248, 0) 5%, rgb(0, 119, 255) 95%);;
+			padding: 10px;
+		}
+		input{
+			float: right;
+			margin-left: 5px;
+		}
+		label{
+			color: rgb(161, 2, 2);
+			font-weight: bold;
+		}
+		#changeButton{
+			margin-left: 30%;
+		}
+	</style>
+
+	
+</head>
+<body>
+	<div style="height: 5%;">
+		<select id="opt" onchange="optionChanged()"></select>
+		<form >
+			<label>Konum: </label><label id="currentPosition"></label><br><br>
+			<label>Çap: </label><label id="currentRadius"></label><br><br>
+			<label for="latitude">Enlem:</label>
+			<input type="text" id="latitude" name="latitude"><br><br>
+			<label for="longitude">Boylam:</label>
+			<input type="text" id="longitude" name="longitude"><br><br>
+			<label for="radius">Çap:</label>
+			<input type="text" id="radius" name="radius"><br><br>
+			<label for="movX">X Hareketi:</label>
+			<input type="text" id="movX" name="movX"><br><br>
+			<label for="movY">Y Hareketi:</label>
+			<input type="text" id="movY" name="movY"><br><br>
+			<button onclick="change()" type="button" id="changeButton">Değiştir</button><br><br>
+			<div id="bounds">
+			</div>
+		</form>
+	</div>
+	<div id="map" style="width: 50%; height: 70%;"></div>
+	<div>
+	<br><br>
+		<button onclick="circlePen()" type="button">Çember Çizici</button><button onclick="move()" type="button">Hareketi Başlat</button><br><br>
+		<button onclick="cursor()" type="button">Fare İmleci</button><button onclick="stop()" type="button">Hareketi Durdur</button>
+	</div>
+	
+	
+<script>
+
+	var list = document.getElementById("opt");
+	var currentPosition = document.getElementById("currentPosition");
+	var currentRadius = document.getElementById("currentRadius");
+	var selectedLat = document.getElementById("latitude");
+	var selectedLng = document.getElementById("longitude");
+	var selectedRadius = document.getElementById("radius");
+	var movementX = document.getElementById("movX");
+	var movementY = document.getElementById("movY");
+	var connections = document.getElementById("bounds");
+	var map = L.map('map').setView([39.232253141714885, 35.09033203125], 6);
+	
+	var tiles = L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/Canvas/World_Light_Gray_Base/MapServer/tile/{z}/{y}/{x}', {
+		attribution: 'Tiles &copy; Esri &mdash; Esri, DeLorme, NAVTEQ',
+        minZoom: 5,
+		maxZoom: 16
+	}).addTo(map);
+
+	var bounds = [[42.779275360241904, 25.51025390625], [35.17380831799959, 46.77978515624999]];
+    bounds = [[43, 25], [35, 46]];
+    
+	
+    map.setMaxBounds(bounds);
+    
+	var circleList = [];
+	var movementVectors = [];
+	var lineList = [];
+    var lineIds = [];
+	var connectionsList = [];
+	var controller = true;
+	function startDrawing(e){
+		if(circleMode){
+				rad=100;
+			var circle = L.circle(e.latlng, 100, {
+				color: 'red',
+				fillColor: '#f03',
+				fillOpacity: 0.1,
+				weight: 1
+			}).addTo(map);
+			interval = setInterval(function(){
+				circle.setRadius(rad);
+				rad+=250;
+			},1);
+			circleList.push(circle);
+            connectionsList.push([]);
+			movementVectors.push([0, 0]);
+		}
+		
+	 }
+
+
+	function stopDrawing(e){
+		if(circleMode){
+			clearInterval(interval);
+			var option = document.createElement("option");
+			var newBound = document.createElement("input");
+			var boundLabel = document.createElement("label");
+			newBound.type = "checkbox";
+			newBound.onchange = function checkboxChanged(cb){
+				var i = list.selectedIndex;
+			if(controller){
+				if(cb.target.checked){
+                    connectionsList[i].push(circleList[parseInt(cb.target.id)]);
+                    connectionsList[parseInt(cb.target.id)].push(circleList[i]);
+                    var polyline = L.polyline([circleList[i].getLatLng(), circleList[parseInt(cb.target.id)].getLatLng()], {color: 'green'}).addTo(map);
+					lineList.push(polyline);
+					lineIds.push([i, parseInt(cb.target.id)]);
+				}else{
+                    let index = connectionsList[i].indexOf(circleList[parseInt(cb.target.id)]);
+                    connectionsList[i].splice(index, 1);
+                    index = connectionsList[parseInt(cb.target.id)].indexOf(circleList[i]);
+                    connectionsList[parseInt(cb.target.id)].splice(index, 1);
+                    let j=0;
+                    let isFound = false;
+                    while(j<lineIds.length&&!isFound){
+                        if(lineIds[j][0]==i&&lineIds[j][1]==parseInt(cb.target.id)){
+                            isFound=true;
+                        }else if(lineIds[j][0]==parseInt(cb.target.id)&&lineIds[j][1]==i){
+                            isFound=true;
+                        }
+                        j++;
+                    }
+                    if(isFound){
+                        map.removeLayer(lineList[j-1]);
+                        lineList.splice(j-1, 1);
+                        lineIds.splice(j-1, 1);
+                    }
+				}
+			}
+			}
+			newBound.id = (circleList.length-1).toString();
+			newBound.class = "checkbox";
+			option.text = circleList.length-1;
+			boundLabel.htmlFor = (circleList.length-1).toString();
+			boundLabel.appendChild(document.createTextNode((circleList.length-1).toString()));
+			newBound.style.float = "left";
+			boundLabel.style.float = "left";
+			connections.appendChild(newBound);
+			connections.appendChild(boundLabel);
+			list.add(option);
+			if(circleList.length==1){
+				optionChanged();
+			}
+		}
+	}
+	
+
+	map.on('mousedown', startDrawing);
+	map.on('mouseup', stopDrawing);
+
+	function optionChanged(){
+		controller = false;
+		var i = list.selectedIndex;
+		let pos = circleList[i].getLatLng();
+		currentPosition.textContent = "("+pos.lat.toFixed(5)+", "+pos.lng.toFixed(5)+")";
+		currentRadius.textContent = circleList[i].getRadius() + " metre";
+		selectedLat.value = pos.lat;
+		selectedLng.value = pos.lng;
+		selectedRadius.value = circleList[i].getRadius();
+		movementX.value = movementVectors[i][0];
+		movementY.value = movementVectors[i][1];
+		let children = Array.prototype.slice.call(connections.children);
+		children.forEach(element => {
+			element.style.visibility="visible";
+		});
+		if(connections.children[0]!=null){
+			connections.children[2*i].style.visibility="hidden";
+			connections.children[2*i+1].style.visibility="hidden";
+		}
+		let checkBoxes = Array.prototype.slice.call(connections.querySelectorAll(".checkbox"));
+		
+		children.forEach(element => {
+			let index = 0;
+			if(index%2==0)
+				element.checked = false;
+		});
+		for (let k = 0; k < circleList.length; k++){
+			let index = connectionsList[i].indexOf(circleList[k]);
+            
+			if (index > -1 ) { 
+                
+				children[k*2].checked = true;
+			}
+		}
+		controller = true;
+	}
+	function change(){
+		controller = false;
+		var i = list.selectedIndex;
+		circleList[i].setRadius(selectedRadius.value);
+		selectedRadius.value = circleList[i].getRadius();
+		circleList[i].setLatLng([selectedLat.value, selectedLng.value]);
+		movementVectors[i][0] = movementX.value;
+		movementVectors[i][1] = movementY.value;
+		optionChanged();
+		controller = true;
+	}
+	function circlePen(){
+		circleMode = true;
+	}
+	function cursor(){
+		circleMode = false;
+	}
+	var movement;
+	function move(){
+		if(!movement){
+		movement = setInterval(function(){
+				for(let i = 0 ; i < circleList.length ; i++){
+					var selected = list.selectedIndex;
+					var pos = circleList[i].getLatLng();
+					var movX = movementVectors[i][0]/1000;
+					var movY = movementVectors[i][1]/1000;
+					pos.lat += movY;
+					pos.lng += movX;
+					circleList[i].setLatLng([pos.lat, pos.lng]);
+					var isFound = false;
+					
+					if(selected==i){
+						selectedLat.value = pos.lat;
+						selectedLng.value = pos.lng;
+						currentPosition.textContent = "("+pos.lat.toFixed(5)+", "+pos.lng.toFixed(5)+")";
+					}
+					
+				}
+				
+				for(let j=0;j<lineList.length;j++){
+						map.removeLayer(lineList[j]);
+						var polyline = L.polyline([circleList[lineIds[j][0]].getLatLng(), circleList[lineIds[j][1]].getLatLng()], {color: 'green'}).addTo(map);
+						console.log(circleList[lineIds[j][0]].getLatLng());
+						lineList[j] = polyline;
+						console.log(circleList[lineIds[j][1]].getLatLng());
+					}
+			},10);}
+	}
+	function stop(){
+		clearInterval(movement);
+		movement=null;
+	}
+</script>
+
+
+
+</body>
+</html>
